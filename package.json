@@ -1,7 +1,11 @@
 {
-  "name": "geo_health",
-  "type": "module",
-  "private": true,
+  "name": "geo_health_01",
+  "version": "1.0.0",
+  "description": "Look at the [Nuxt documentation](https://nuxt.com/docs/getting-started/introduction) to learn more.",
+  "main": "index.js",
+  "devDependencies": {
+    "nuxt": "latest"
+  },
   "scripts": {
     "build": "nuxt build",
     "dev": "nuxt dev",
@@ -9,9 +13,20 @@
     "preview": "nuxt preview",
     "postinstall": "nuxt prepare"
   },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/AhmedAbdalgader/Geo-health.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "bugs": {
+    "url": "https://github.com/AhmedAbdalgader/Geo-health/issues"
+  },
+  "homepage": "https://github.com/AhmedAbdalgader/Geo-health#readme",
   "dependencies": {
-    "nuxt": "^4.2.2",
-    "vue": "^3.5.26",
-    "vue-router": "^4.6.4"
+    "@tailwindcss/vite": "^4.2.4",
+    "tailwindcss": "^4.2.4"
   }
 }
