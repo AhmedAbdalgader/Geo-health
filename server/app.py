@@ -2,7 +2,7 @@
 from flask import Flask, request, jsonify
 # from flask_cors import CORS
 from psycopg2.extras import RealDictCursor
-from server_db import get_db_connection
+from server_db import get_db_connection, init_db_pool
 from routing_logic import get_closest_node, get_shortest_path, get_nearby_facilities, get_closest_facilities, get_routing_to_facility
 
 
@@ -27,6 +27,7 @@ def routing():
     - distance: calculated distance
     - error: error message if applicable
     """
+    pg_conn = None
     try:
         if request.method == 'POST':
             data = request.get_json()
@@ -44,7 +45,11 @@ def routing():
         source = source.split(",")
         target = target.split(",")
 
-        result = get_shortest_path(source, target, srid)
+        # Borrow one connection and create cursor for multi-step operation
+        pg_conn = get_db_connection()
+        pg_cursor = pg_conn.cursor(cursor_factory=RealDictCursor)
+
+        result = get_shortest_path(source, target, srid, pg_cursor)
 
         if "error" in result and result["error"]:
             return jsonify(result), 400
@@ -52,6 +57,9 @@ def routing():
 
     except Exception as e:
         return jsonify({"error": f"Server error: {str(e)}", "path": None}), 500
+    finally:
+        if pg_conn:
+            pg_conn.close()
 
 
 @app.route('/health', methods=['GET'])
@@ -135,6 +143,8 @@ def routing_to_facility():
         return jsonify({"error": "Missing required parameters: loc or srid"}), 400
 
     loc = loc.split(",")
+    pg_conn = None
+    pg_cursor = None
     try:
         loc_x, loc_y = float(loc[0]), float(loc[1])
         input_srid = int(srid)
@@ -149,12 +159,16 @@ def routing_to_facility():
         print('node:', node)
         u_closest_node_id = node['id']
         print('u_closest_node_id:', u_closest_node_id)
+
+        result = get_routing_to_facility(u_closest_node_id, input_srid, input_f_closest_node_id, pg_cursor)
+        if "error" in result and result["error"]:
+            return jsonify(result), 400
+        return jsonify(result), 200
     except (ValueError, IndexError) as e:
         return jsonify({"error": f"Invalid input format: {str(e)}", "facilities": None}), 400
-    result = get_routing_to_facility(u_closest_node_id, input_srid, input_f_closest_node_id)
-    if "error" in result and result["error"]:
-        return jsonify(result), 400
-    return jsonify(result), 200
+    finally:
+        if pg_conn:
+            pg_conn.close()
 
 ####Coverage of facilities
 
@@ -166,4 +180,5 @@ def routing_to_facility():
 
 #### RUNNING FLASK IN DEV MODE
 if __name__ == '__main__':
+    init_db_pool()
     app.run(debug=True)

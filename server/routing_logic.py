@@ -29,9 +29,8 @@ def get_closest_node(coord, srid, cursor):
         raise Exception(f"Error finding closest node: {str(e)}")
 
 #  Function for Routing
-def get_shortest_path(source_coord, target_coord, srid):
-    """Calculate the shortest path between two coordinates using pgr_dijkstra"""
-    pg_conn = None
+def get_shortest_path(source_coord, target_coord, srid, cursor):
+    """Calculate the shortest path between two coordinates using pgr_dijkstra. Accepts existing cursor to reuse connection."""
     try:
         # Validate input coordinates
         try:
@@ -41,13 +40,9 @@ def get_shortest_path(source_coord, target_coord, srid):
         except (ValueError, IndexError) as e:
             return {"error": f"Invalid coordinate format: {str(e)}", "path": None}
 
-        # Connect to database
-        pg_conn = get_db_connection()
-        pg_cursor = pg_conn.cursor(cursor_factory=RealDictCursor)
-
-        # Find closest nodes
-        origin_node = get_closest_node(source_coord, srid, pg_cursor)
-        target_node = get_closest_node(target_coord, srid, pg_cursor)
+        # Find closest nodes using provided cursor
+        origin_node = get_closest_node(source_coord, srid, cursor)
+        target_node = get_closest_node(target_coord, srid, cursor)
 
         if origin_node is None:
             return {"error": "Could not find closest node to source coordinates", "path": None}
@@ -76,8 +71,8 @@ def get_shortest_path(source_coord, target_coord, srid):
 
         params = (int(origin_id), int(target_id), input_srid)
 
-        pg_cursor.execute(selectQuery, params)
-        result = pg_cursor.fetchall()
+        cursor.execute(selectQuery, params)
+        result = cursor.fetchall()
 
         if len(result) > 0 and result[0]['path'] is not None:
             return {"path": result[0]['path'], "distance": float(result[0]['distance'])}
@@ -86,9 +81,6 @@ def get_shortest_path(source_coord, target_coord, srid):
 
     except Exception as e:
         return {"error": str(e), "path": None}
-    finally:
-        if pg_conn:
-            pg_conn.close()
 
 # Function for Searching for nearby facilities
 def get_nearby_facilities(loc, distance, srid):
@@ -216,13 +208,9 @@ def get_closest_facilities(loc, srid):
             pg_conn.close()
 
 #Function to compute the closest route to a facility
-def get_routing_to_facility(u_closest_node_id, srid, closest_node_id):
-    """ Routing between the user's location and the closest facility of a selected type."""
-    pg_conn = None
+def get_routing_to_facility(u_closest_node_id, srid, closest_node_id, cursor):
+    """Routing between the user's location and the closest facility of a selected type."""
     try:
-        # Connect to database
-        pg_conn = get_db_connection()
-        pg_cursor = pg_conn.cursor(cursor_factory=RealDictCursor)
         # Query shortest path using pgr_dijkstra
         selectQuery = """
             WITH route_path AS (
@@ -239,8 +227,8 @@ def get_routing_to_facility(u_closest_node_id, srid, closest_node_id):
 
         params = (int(u_closest_node_id), int(closest_node_id), int(srid))
 
-        pg_cursor.execute(selectQuery, params)
-        result = pg_cursor.fetchall()
+        cursor.execute(selectQuery, params)
+        result = cursor.fetchall()
 
         if len(result) > 0 and result[0]['path'] is not None:
             return {"path": result[0]['path'], "distance": float(result[0]['distance'])}
@@ -249,6 +237,3 @@ def get_routing_to_facility(u_closest_node_id, srid, closest_node_id):
 
     except Exception as e:
         return {"error": str(e), "path": None}
-    finally:
-        if pg_conn:
-            pg_conn.close()
